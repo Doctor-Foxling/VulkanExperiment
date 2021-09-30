@@ -1,0 +1,12 @@
+vendors/
+VulkanExperiment/Debug/
+VulkanExperiment/x64/
+Debug/
+
+# Visual studio folders and files
+.vs/
+**.sln
+**.vcxproj
+**.vcxproj.filters
+**.vcxproj.user
+© 2021 GitHub, Inc.
