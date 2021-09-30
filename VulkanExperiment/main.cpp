@@ -24,10 +24,16 @@ int main()
 	glm::mat4 testMatrix(1.0f);
 	glm::vec4 testVector(1.0f);
 
+	auto testResult = testMatrix * testVector;
+
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
 	}
 
 	glfwDestroyWindow(window);
+
+	glfwTerminate();
+
+	return 0;
 }

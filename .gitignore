@@ -2,6 +2,7 @@ vendors/
 VulkanExperiment/Debug/
 VulkanExperiment/x64/
 Debug/
+x64/
 
 # Visual studio folders and files
 .vs/
