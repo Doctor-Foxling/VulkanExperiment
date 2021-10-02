@@ -6,12 +6,15 @@
 #include <stdexcept>
 #include <vector>
 
+#include "Utilities.h"
+
 class VulkanRenderer
 {
 public:
 	VulkanRenderer();
 
 	int init(GLFWwindow* newWindow);
+	void cleanup();
 
 	~VulkanRenderer();
 private:
@@ -19,8 +22,28 @@ private:
 
 	// Vulkan Comnponents
 	VkInstance m_Instance;
+	struct {
+		VkPhysicalDevice physicalDevice;
+		VkDevice logicalDevice;
+	} m_MainDevice;
 
-	// Vulkan Functions
+	// |--- Vulkan Functions ---|
+
+	// Create Functions
 	void createInstance();
+
+	// Get Functions
+	void getPhysicalDevice();
+
+	// |- Support Functions -|
+	// Checker Functions
+	bool checkInstanceExtensionSupport(std::vector<const char*>* checkExtensions);
+	bool checkDeviceSuitable(VkPhysicalDevice device);
+
+	// Getter Functions
+	QueueFamilyIndices getQueueFamilies(VkPhysicalDevice device);
+	// |-	 ^	  -|
+
+	// |---		 ^		 ---|
 };
 

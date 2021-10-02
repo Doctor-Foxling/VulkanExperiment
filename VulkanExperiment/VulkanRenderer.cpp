@@ -10,6 +10,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
     try {
         createInstance();
+        getPhysicalDevice();
     }
     catch (const std::runtime_error& e)
     {
@@ -17,6 +18,11 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
         return EXIT_FAILURE;
     }
     return 0;
+}
+
+void VulkanRenderer::cleanup()
+{
+    vkDestroyInstance(m_Instance, nullptr);
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -58,6 +64,13 @@ void VulkanRenderer::createInstance()
         instanceExtensions.push_back(glfwExtensions[i]);
     }
 
+    // Check Instance Extensions supported...
+    //(HINT: Other things also need extensions (e.g., devices), we are interested in instance extensions here)
+    if (!checkInstanceExtensionSupport(&instanceExtensions))
+    {
+        throw std::runtime_error("VkInstance does not support required extensions!");
+    }
+
     createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
     createInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
@@ -71,4 +84,113 @@ void VulkanRenderer::createInstance()
     {
         throw std::runtime_error("Failed to create a Vulkan Instance");
     }
+}
+
+void VulkanRenderer::getPhysicalDevice()
+{
+    // Enumerate the Physical devices the vkInstance can access
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
+
+    // If no devices available, then none suport Vulkan!
+    if (deviceCount == 0)
+    {
+        throw std::runtime_error("Can't find GPUs that support Vulkan Instance!");
+    }
+
+    // Get List of physical devices
+    std::vector<VkPhysicalDevice> deviceList(deviceCount);
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, deviceList.data());
+
+    for (const auto& device : deviceList)
+    {
+        if (checkDeviceSuitable(device))
+        {
+            m_MainDevice.physicalDevice = device;
+            break;
+        }
+    }
+}
+
+bool VulkanRenderer::checkInstanceExtensionSupport(std::vector<const char*>* checkExtensions)
+{
+    // Need to get the number of extensions to create array of correct size to hold extensions
+    uint32_t  extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+
+    // Create a list of VkExtensionProperties using count
+    std::vector<VkExtensionProperties> extensions(extensionCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
+
+    // Check if given extensions are in list of available extensions
+    for (const auto& checkExtension : *checkExtensions)
+    {
+        bool hasExtension = false;
+        for (const auto& extension : extensions)
+        {
+            if (strcmp(checkExtension, extension.extensionName))
+            {
+                hasExtension = true;
+                break;
+            }
+        }
+        
+        if (!hasExtension)
+        {
+            return true;
+        }
+    }
+
+    return true;
+}
+
+bool VulkanRenderer::checkDeviceSuitable(VkPhysicalDevice device)
+{
+    /*
+    // Inforation about the device itself (ID, name, type, vendor, etc.)
+    VkPhysicalDeviceProperties deviceProperties;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+    // Information about what the device can do (geo, shader, tess shader, wide lines, etc.)
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+    */
+
+    QueueFamilyIndices indices = getQueueFamilies(device);
+
+    return indices.isValid();
+}
+
+QueueFamilyIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice device)
+{
+    QueueFamilyIndices indices;
+
+    //Get all Queue Family Property info for the given device
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilyList(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilyList.data());
+
+    //Go through each queue family and check ifit has at least 1 of the required types of queue
+    int i = 0;
+    for (const auto& queueFamily : queueFamilyList)
+    {
+        // First check if queue family has at least 1 queue in that family (could have no queues)
+        // Queue can be multiple types defined through bitfield. Need to bitwise AND with VK_QUEUE_*_BIT to check if has requried type
+        if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphicsFamily = i;     // If queue family is valid then get index
+        }
+
+        if (indices.isValid())
+        {
+            break;
+        }
+
+        i++;
+    }
+
+    uint32_t queueFamilyCount = 0;
+
 }

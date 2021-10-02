@@ -40,6 +40,8 @@ int main()
 		glfwPollEvents();
 	}
 
+	vulkanRenderer.cleanup();
+
 	// Destroy GLFW window and stop GLFW
 	glfwDestroyWindow(window);
 	glfwTerminate();
