@@ -2,6 +2,11 @@
 
 VulkanRenderer::VulkanRenderer()
 {
+#ifdef NDEBUG
+    enableValidationLayers = false;
+#else
+    enableValidationLayers = true;
+#endif
 }
 
 int VulkanRenderer::init(GLFWwindow* newWindow)
@@ -65,6 +70,11 @@ void VulkanRenderer::createInstance()
         instanceExtensions.push_back(glfwExtensions[i]);
     }
 
+    if (enableValidationLayers)
+    {
+        instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // The macro used is equivalent to the string "VK_EXT_debug_utils"
+    }
+
     // Check Instance Extensions supported...
     //(HINT: Other things also need extensions (e.g., devices), we are interested in instance extensions here)
     if (!checkInstanceExtensionSupport(&instanceExtensions))
@@ -75,9 +85,25 @@ void VulkanRenderer::createInstance()
     createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
     createInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
-    // TODO: Set up VAlidation Layers that Instance will use
+    // Setting up the validation layers that the instance would use
+    const std::vector<const char*> validationLayers = {
+        "VK_LAYER_KHRONOS_validation",
+    };
+
+    if (enableValidationLayers && !checkValidationLayerSupport(&validationLayers))
+    {
+        throw std::runtime_error("VkInstance does not support required validation Layers!");
+    }
+
+    if (enableValidationLayers)
+    {
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
+    }
+    else{
     createInfo.enabledLayerCount = 0;
     createInfo.ppEnabledLayerNames = nullptr;
+    }
 
     VkResult result = vkCreateInstance(&createInfo, nullptr, &m_Instance);
 
@@ -124,6 +150,11 @@ void VulkanRenderer::createLogicalDevice()
     // So we want a handle to our queues
     // From given logical device, of given Queue Family, of Given Queue Index (0, since only 1 queue), place reference in given VkQueue
     vkGetDeviceQueue(m_MainDevice.logicalDevice, indices.graphicsFamily, 0, &m_GraphicsQueue);
+}
+
+void VulkanRenderer::CreateDebugMessenger()
+{
+
 }
 
 void VulkanRenderer::getPhysicalDevice()
@@ -201,6 +232,34 @@ bool VulkanRenderer::checkDeviceSuitable(VkPhysicalDevice device)
     return indices.isValid();
 }
 
+bool VulkanRenderer::checkValidationLayerSupport(const std::vector<const char*>* validationLayers)
+{
+    uint32_t layerCount;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    for (const char* layerName : *validationLayers) {
+        bool layerFound = false;
+
+        for (const auto& layerProperties : availableLayers)
+        {
+            if (strcmp(layerName, layerProperties.layerName) == 0) {
+                layerFound = true;
+                break;
+            }
+        }
+
+        if (!layerFound)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 QueueFamilyIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice device)
 {
     QueueFamilyIndices indices;
@@ -233,4 +292,13 @@ QueueFamilyIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice device)
 
     return indices;
 
+}
+
+// VKAPI_ATTR and VKAPI_CALL ensure that the function has the right signature for Vulkan to call it
+VKAPI_ATTR VkBool32 VKAPI_CALL VulkanRenderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+{
+    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+    return VK_FALSE;
 }
