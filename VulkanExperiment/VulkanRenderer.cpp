@@ -28,6 +28,22 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 void VulkanRenderer::cleanup()
 {
     vkDestroyDevice(m_MainDevice.logicalDevice, nullptr);
+
+    /*
+    if (enableValidationLayers) {
+        // Destroying the DebugMessenger
+        auto destroy_func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_Instance, "vkDestroyDebugUtilsMessengerEXT");
+        if (destroy_func != nullptr)
+        {
+            destroy_func(m_Instance, m_DebugMessenger, nullptr);
+        }
+        else
+        {
+            throw std::runtime_error("Memory Leak: Could not load the destroy extension function for DebugUtilsMessenger");
+        }
+    }
+    */
+
     vkDestroyInstance(m_Instance, nullptr);
 }
 
@@ -95,10 +111,14 @@ void VulkanRenderer::createInstance()
         throw std::runtime_error("VkInstance does not support required validation Layers!");
     }
 
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};   // Placing this outside the if statement to ensure it is not deleted before createInstance call
     if (enableValidationLayers)
     {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
+
+        populateDebugMessengerCreateInfo(debugCreateInfo);
+        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
     }
     else{
     createInfo.enabledLayerCount = 0;
@@ -154,7 +174,27 @@ void VulkanRenderer::createLogicalDevice()
 
 void VulkanRenderer::CreateDebugMessenger()
 {
+    if (!enableValidationLayers) return;
 
+    VkDebugUtilsMessengerCreateInfoEXT DebugCreateInfo;
+    populateDebugMessengerCreateInfo(DebugCreateInfo);
+
+    // Becasue vkCreateDebugUtilsMessengerEXT function is an extension function, we have to look up its address ourselves using vkGetInstanceProcAddr
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_Instance, "vkCreateDebugUtilsMessengerEXT");
+
+    if (func != nullptr)
+    {
+        VkResult result = func(m_Instance, &DebugCreateInfo, nullptr, &m_DebugMessenger);
+
+        if (result != VK_SUCCESS)
+        {
+            throw std::runtime_error("Cannot create a DebugMessenger");
+        }
+    }
+    else
+    {
+        throw std::runtime_error("VK Error Extension is not present");
+    }
 }
 
 void VulkanRenderer::getPhysicalDevice()
@@ -208,7 +248,7 @@ bool VulkanRenderer::checkInstanceExtensionSupport(std::vector<const char*>* che
         
         if (!hasExtension)
         {
-            return true;
+            return false;
         }
     }
 
@@ -301,4 +341,17 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanRenderer::debugCallback(VkDebugUtilsMessage
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
     return VK_FALSE;
+}
+
+// Support function for populatiung the debugMessengerCreateInfo struct
+void VulkanRenderer::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& DebugCreateInfo)
+{
+    DebugCreateInfo = {};
+    DebugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    DebugCreateInfo.messageSeverity = /* VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | */
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    DebugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+        | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    DebugCreateInfo.pfnUserCallback = debugCallback;
+    DebugCreateInfo.pUserData = nullptr;    // Optional
 }

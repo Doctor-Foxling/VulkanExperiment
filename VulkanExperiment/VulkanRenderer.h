@@ -32,7 +32,7 @@ private:
 
 	bool enableValidationLayers;
 
-	VkDebugUtilsMessengerEXT debugMessenger;
+	VkDebugUtilsMessengerEXT m_DebugMessenger;
 
 	// |--- Vulkan Functions ---|
 
@@ -59,6 +59,10 @@ private:
 		VkDebugUtilsMessageTypeFlagsEXT messageType,
 		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackdata,
 		void* pUserData);
+
+	// Others
+	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+	
 	// |-	 ^	  -|
 
 	// |---		 ^		 ---|
